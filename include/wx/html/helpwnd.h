@@ -31,6 +31,7 @@
 #include "wx/hash.h"
 #include "wx/html/htmlwin.h"
 #include "wx/html/htmprint.h"
+#include "wx/webview.h"
 
 class WXDLLIMPEXP_FWD_CORE wxButton;
 class WXDLLIMPEXP_FWD_CORE wxTextCtrl;
@@ -58,6 +59,42 @@ class WXDLLIMPEXP_FWD_CORE wxTreeCtrl;
 #define wxHF_FLATTOOLBAR             wxHF_FLAT_TOOLBAR
 #define wxHF_DEFAULTSTYLE            wxHF_DEFAULT_STYLE
 
+
+
+/*!
+ * Command IDs
+ */
+
+enum
+{
+    //wxID_HTML_HELPFRAME = wxID_HIGHEST + 1,
+    wxID_HTML_PANEL = wxID_HIGHEST + 10,
+    wxID_HTML_BACK,
+    wxID_HTML_FORWARD,
+    wxID_HTML_UPNODE,
+    wxID_HTML_UP,
+    wxID_HTML_DOWN,
+    wxID_HTML_PRINT,
+    wxID_HTML_OPENFILE,
+    wxID_HTML_OPTIONS,
+    wxID_HTML_BOOKMARKSLIST,
+    wxID_HTML_BOOKMARKSADD,
+    wxID_HTML_BOOKMARKSREMOVE,
+    wxID_HTML_TREECTRL,
+    wxID_HTML_INDEXPAGE,
+    wxID_HTML_INDEXLIST,
+    wxID_HTML_INDEXTEXT,
+    wxID_HTML_INDEXBUTTON,
+    wxID_HTML_INDEXBUTTONALL,
+    wxID_HTML_NOTEBOOK,
+    wxID_HTML_SEARCHPAGE,
+    wxID_HTML_SEARCHTEXT,
+    wxID_HTML_SEARCHLIST,
+    wxID_HTML_SEARCHBUTTON,
+    wxID_HTML_SEARCHCHOICE,
+    wxID_HTML_COUNTINFO
+};
+
 struct wxHtmlHelpFrameCfg
 {
     int x, y, w, h;
@@ -65,34 +102,46 @@ struct wxHtmlHelpFrameCfg
     bool navig_on;
 };
 
+/**
+  * Add a way to distinguish whether we use wxHtmlWindow or wxWebView for displaying
+  * HTML Pages. Another class can be added with easy, trivially!
+*/
+
+
+
 struct wxHtmlHelpMergedIndexItem;
 class wxHtmlHelpMergedIndex;
+class wxHtmHelpViewerBase;
 
 class WXDLLIMPEXP_FWD_CORE wxHelpControllerBase;
 class WXDLLIMPEXP_FWD_HTML wxHtmlHelpController;
 
 /*!
- * Help window
+ * Help Window base class that will be inherited to add new backend
+ * Expect to be base to at least wxHtmlWindow and wxWebView based backends
+ * Jun 18 2013 - Stefano D. Mtangoo
  */
 
-class WXDLLIMPEXP_HTML wxHtmlHelpWindow : public wxWindow
+ class WXDLLIMPEXP_HTML wxHelpWindow : public wxWindow
 {
-    DECLARE_DYNAMIC_CLASS(wxHtmlHelpWindow)
 
 public:
-    wxHtmlHelpWindow(wxHtmlHelpData* data = NULL) { Init(data); }
-    wxHtmlHelpWindow(wxWindow* parent, wxWindowID wxWindowID,
+    wxHelpWindow(wxHtmlHelpData* data = NULL) { Init(data); }
+
+    wxHelpWindow(wxWindow* parent, wxWindowID wxWindowID,
                     const wxPoint& pos = wxDefaultPosition,
                     const wxSize& size = wxDefaultSize,
                     int style = wxTAB_TRAVERSAL|wxNO_BORDER,
                     int helpStyle = wxHF_DEFAULT_STYLE,
                     wxHtmlHelpData* data = NULL);
-    bool Create(wxWindow* parent, wxWindowID id,
+
+    virtual bool Create(wxWindow* parent, wxWindowID id,
                 const wxPoint& pos = wxDefaultPosition,
                 const wxSize& size = wxDefaultSize,
                 int style = wxTAB_TRAVERSAL|wxNO_BORDER,
-                int helpStyle = wxHF_DEFAULT_STYLE);
-    virtual ~wxHtmlHelpWindow();
+                int helpStyle = wxHF_DEFAULT_STYLE)=0;
+
+    virtual ~wxHelpWindow();
 
     wxHtmlHelpData* GetData() { return m_Data; }
     wxHtmlHelpController* GetController() const { return m_helpController; }
@@ -150,7 +199,7 @@ public:
     void RefreshLists();
 
     // Gets the HTML window
-    wxHtmlWindow* GetHtmlWindow() const { return m_HtmlWin; }
+    virtual wxWindow* GetHtmlWindow() const=0;
 
     // Gets the splitter window
     wxSplitterWindow* GetSplitterWindow() const { return m_Splitter; }
@@ -165,7 +214,7 @@ public:
     wxTreeCtrl *GetTreeCtrl() const { return m_ContentsBox; }
 
 protected:
-    void Init(wxHtmlHelpData* data = NULL);
+    void Init(wxHtmlHelpData* data = NULL); //Initialize Help Widgets
 
     // Adds items to m_Contents tree control
     void CreateContents();
@@ -205,10 +254,10 @@ protected:
 
 protected:
     wxHtmlHelpData* m_Data;
+    wxHtmHelpViewerBase *m_HtmlWin;   //HTML Displayer/Viewer
     bool m_DataCreated;  // m_Data created by frame, or supplied?
     wxString m_TitleFormat;  // title of the help frame
     // below are various pointers to GUI components
-    wxHtmlWindow *m_HtmlWin;
     wxSplitterWindow *m_Splitter;
     wxPanel *m_NavigPan;
     wxNotebook *m_NavigNotebook;
@@ -263,41 +312,68 @@ private:
     wxHtmlHelpMergedIndex *m_mergedIndex;
 
     DECLARE_EVENT_TABLE()
-    wxDECLARE_NO_COPY_CLASS(wxHtmlHelpWindow);
-};
 
-/*!
- * Command IDs
+ };
+
+
+ /*!
+ * Help window using wxWebView
  */
 
-enum
+ class WXDLLIMPEXP_HTML wxWebViewHelpWindow : public wxHelpWindow
+ {
+     //DECLARE_DYNAMIC_CLASS(wxWebViewHelpWindow)
+
+ public:
+    // Gets the HTML window
+    wxWebView *GetHtmlWindow() const;
+
+    wxWebViewHelpWindow(wxHtmlHelpData* data = NULL) {  Init(data); }
+
+    wxWebViewHelpWindow(wxWindow* parent, wxWindowID wxWindowID,
+                    const wxPoint& pos = wxDefaultPosition,
+                    const wxSize& size = wxDefaultSize,
+                    int style = wxTAB_TRAVERSAL|wxNO_BORDER,
+                    int helpStyle = wxHF_DEFAULT_STYLE,
+                    wxHtmlHelpData* data = NULL);
+
+    bool Create(wxWindow* parent, wxWindowID id,
+                const wxPoint& pos = wxDefaultPosition,
+                const wxSize& size = wxDefaultSize,
+                int style = wxTAB_TRAVERSAL|wxNO_BORDER,
+                int helpStyle = wxHF_DEFAULT_STYLE);
+
+ };
+
+
+/*!
+ * Help window using wxHtmlWindow
+ */
+
+class WXDLLIMPEXP_HTML wxHtmlHelpWindow : public wxHelpWindow
 {
-    //wxID_HTML_HELPFRAME = wxID_HIGHEST + 1,
-    wxID_HTML_PANEL = wxID_HIGHEST + 10,
-    wxID_HTML_BACK,
-    wxID_HTML_FORWARD,
-    wxID_HTML_UPNODE,
-    wxID_HTML_UP,
-    wxID_HTML_DOWN,
-    wxID_HTML_PRINT,
-    wxID_HTML_OPENFILE,
-    wxID_HTML_OPTIONS,
-    wxID_HTML_BOOKMARKSLIST,
-    wxID_HTML_BOOKMARKSADD,
-    wxID_HTML_BOOKMARKSREMOVE,
-    wxID_HTML_TREECTRL,
-    wxID_HTML_INDEXPAGE,
-    wxID_HTML_INDEXLIST,
-    wxID_HTML_INDEXTEXT,
-    wxID_HTML_INDEXBUTTON,
-    wxID_HTML_INDEXBUTTONALL,
-    wxID_HTML_NOTEBOOK,
-    wxID_HTML_SEARCHPAGE,
-    wxID_HTML_SEARCHTEXT,
-    wxID_HTML_SEARCHLIST,
-    wxID_HTML_SEARCHBUTTON,
-    wxID_HTML_SEARCHCHOICE,
-    wxID_HTML_COUNTINFO
+    //DECLARE_DYNAMIC_CLASS(wxHtmlHelpWindow)
+
+public:
+    wxHtmlHelpWindow(wxHtmlHelpData* data = NULL) {  Init(data); }
+
+    wxHtmlHelpWindow(wxWindow* parent, wxWindowID wxWindowID,
+                    const wxPoint& pos = wxDefaultPosition,
+                    const wxSize& size = wxDefaultSize,
+                    int style = wxTAB_TRAVERSAL|wxNO_BORDER,
+                    int helpStyle = wxHF_DEFAULT_STYLE,
+                    wxHtmlHelpData* data = NULL);
+
+    bool Create(wxWindow* parent, wxWindowID id,
+                const wxPoint& pos = wxDefaultPosition,
+                const wxSize& size = wxDefaultSize,
+                int style = wxTAB_TRAVERSAL|wxNO_BORDER,
+                int helpStyle = wxHF_DEFAULT_STYLE);
+
+    virtual ~wxHtmlHelpWindow(){};
+
+    // Gets the HTML window
+    wxHtmlWindow* GetHtmlWindow() const ;
 };
 
 #endif // wxUSE_WXHTML_HELP
