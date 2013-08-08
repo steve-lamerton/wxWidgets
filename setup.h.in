@@ -342,6 +342,7 @@
 
 #if defined(__WXGTK__) || defined(__WXOSX__)
 #define wxUSE_WEBVIEW_WEBKIT 0
+#define wxUSE_WEBVIEW_WEBKIT2 0
 #else
 #define wxUSE_WEBVIEW_WEBKIT 0
 #endif

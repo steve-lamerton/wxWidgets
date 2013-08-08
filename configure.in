@@ -1040,6 +1040,7 @@ WX_ARG_FEATURE(accessibility,[  --enable-accessibility  enable accessibility sup
 WX_ARG_FEATURE(uiactionsim,  [  --enable-uiactionsim    use wxUIActionSimulator (experimental)], wxUSE_UIACTIONSIMULATOR)
 WX_ARG_FEATURE(dctransform,  [  --enable-dctransform    use wxDC::SetTransformMatrix and related], wxUSE_DC_TRANSFORM_MATRIX)
 WX_ARG_FEATURE(webviewwebkit,[  --enable-webviewwebkit  use wxWebView WebKit backend], wxUSE_WEBVIEW_WEBKIT)
+WX_ARG_FEATURE(webviewwebkit2,[  --enable-webviewwebkit2  use wxWebView WebKit2 backend], wxUSE_WEBVIEW_WEBKIT2)
 
 dnl ---------------------------------------------------------------------------
 dnl support for image formats that do not rely on external library
@@ -7243,6 +7244,7 @@ fi
 
 if test "$wxUSE_WEBVIEW" = "yes"; then
     USE_WEBVIEW_WEBKIT=0
+    USE_WEBVIEW_WEBKIT2=0
     if test "$wxUSE_WEBVIEW_WEBKIT" = "yes"; then
         if test "$wxUSE_GTK" = 1; then
             webkitgtk=webkit-1.0
@@ -7279,14 +7281,36 @@ if test "$wxUSE_WEBVIEW" = "yes"; then
             CPPFLAGS="$old_CPPFLAGS"
         fi
     fi
+    
+    if test "$wxUSE_WEBVIEW_WEBKIT2" = "yes"; then
+        if test "$wxUSE_GTK" = 1; then
+            if test "$WXGTK3" = 1; then
+                webkitgtk=webkit2gtk-3.0
+                PKG_CHECK_MODULES([WEBKIT2],
+                                  [$webkitgtk >= 2.0.4],
+                                  [
+                                    USE_WEBVIEW_WEBKIT2=1
+                                    CPPFLAGS="$CPPFLAGS $WEBKIT2_CFLAGS"
+                                    GUI_TK_LIBRARY="$GUI_TK_LIBRARY $WEBKIT2_LIBS"
+                                ],
+                                [
+                                    AC_MSG_WARN([webkit2gtk not found.])
+                                ])
+            fi
+        fi
+    fi
 
     wxUSE_WEBVIEW="no"
     if test "$wxUSE_GTK" = 1 -o "$wxUSE_MAC" = 1; then
         if test "$USE_WEBVIEW_WEBKIT" = 1; then
             wxUSE_WEBVIEW="yes"
             AC_DEFINE(wxUSE_WEBVIEW_WEBKIT)
+        elif test "$USE_WEBVIEW_WEBKIT2" = 1; then
+            AC_MSG_WARN([Have got use webkit2])
+            wxUSE_WEBVIEW="yes"
+            AC_DEFINE(wxUSE_WEBVIEW_WEBKIT2)
         else
-            AC_MSG_WARN([WebKit not available, disabling wxWebView])
+            AC_MSG_WARN([WebKit and WebKit2 not available, disabling wxWebView])
         fi
     elif test "$wxUSE_MSW" = 1; then
         if test "$wxUSE_WEBVIEW_IE" = "yes"; then

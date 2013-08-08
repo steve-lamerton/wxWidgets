@@ -96,6 +96,7 @@ extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewDefaultURLStr[];
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendDefault[];
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendIE[];
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendWebKit[];
+extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendWebKit2[];
 
 class WXDLLIMPEXP_WEBVIEW wxWebViewFactory : public wxObject
 {

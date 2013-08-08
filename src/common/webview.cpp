@@ -22,6 +22,7 @@
 #include "wx/osx/webview_webkit.h"
 #elif defined(__WXGTK__)
 #include "wx/gtk/webview_webkit.h"
+#include "wx/gtk/webview_webkit2.h"
 #elif defined(__WXMSW__)
 #include "wx/msw/webview_ie.h"
 #endif
@@ -34,11 +35,14 @@ extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewNameStr[] = "wxWebView";
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewDefaultURLStr[] = "about:blank";
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendIE[] = "wxWebViewIE";
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendWebKit[] = "wxWebViewWebKit";
+extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendWebKit2[] = "wxWebViewWebKit2";
 
 #ifdef __WXMSW__
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendDefault[] = "wxWebViewIE";
-#else
+#elif wxUSE_WEBVIEW_WEBKIT
 extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendDefault[] = "wxWebViewWebKit";
+#elif wxUSE_WEBVIEW_WEBKIT2
+extern WXDLLIMPEXP_DATA_WEBVIEW(const char) wxWebViewBackendDefault[] = "wxWebViewWebKit2";
 #endif
 
 wxIMPLEMENT_ABSTRACT_CLASS(wxWebView, wxControl);
@@ -101,11 +105,15 @@ void wxWebView::InitFactoryMap()
 #ifdef __WXMSW__
     if(m_factoryMap.find(wxWebViewBackendIE) == m_factoryMap.end())
         RegisterFactory(wxWebViewBackendIE, wxSharedPtr<wxWebViewFactory>
-                                                   (new wxWebViewFactoryIE));
-#else
+                                            (new wxWebViewFactoryIE));
+#elif wxUSE_WEBVIEW_WEBKIT
     if(m_factoryMap.find(wxWebViewBackendWebKit) == m_factoryMap.end())
         RegisterFactory(wxWebViewBackendWebKit, wxSharedPtr<wxWebViewFactory>
-                                                       (new wxWebViewFactoryWebKit));
+                                                (new wxWebViewFactoryWebKit));
+#elif wxUSE_WEBVIEW_WEBKIT2
+    if(m_factoryMap.find(wxWebViewBackendWebKit2) == m_factoryMap.end())
+        RegisterFactory(wxWebViewBackendWebKit2, wxSharedPtr<wxWebViewFactory>
+                                                 (new wxWebViewFactoryWebKit2));
 #endif
 }
 
