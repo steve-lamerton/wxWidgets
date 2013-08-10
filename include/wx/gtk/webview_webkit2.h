@@ -118,29 +118,11 @@ public:
 
     virtual void* GetNativeBackend() const { return m_web_view; }
 
-    /** TODO: check if this can be made private
-     * The native control has a getter to check for busy state, but except in
-     * very recent versions of webkit this getter doesn't say everything we need
-     * (namely it seems to stay indefinitely busy when loading is cancelled by
-     * user)
-     */
-    bool m_busy;
-
-    wxString m_vfsurl;
-
-    //We use this flag to stop recursion when we load a page from the navigation
-    //callback, mainly when loading a VFS page
-    bool m_guard;
-
 protected:
     virtual void DoSetPage(const wxString& html, const wxString& baseUrl);
-
     virtual GdkWindow *GTKGetWindow(wxArrayGdkWindows& windows) const;
 
 private:
-
-    void ZoomIn();
-    void ZoomOut();
     void SetWebkitZoom(float level);
     float GetWebkitZoom() const;
 
@@ -151,8 +133,6 @@ private:
     void GTKOnFocus(wxFocusEvent& event);
 
     WebKitWebView *m_web_view;
-    int m_historyLimit;
-
     wxVector<wxSharedPtr<wxWebViewHandler> > m_handlerList;
 
     //variables used for Find()

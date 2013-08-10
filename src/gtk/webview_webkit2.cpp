@@ -24,56 +24,33 @@
 // ----------------------------------------------------------------------------
 // GTK callbacks
 // ----------------------------------------------------------------------------
-/*
+
 extern "C"
 {
 
 static void
 wxgtk_webview_webkit_load_changed(WebKitWebView *web_view,
                                   WebKitLoadEvent load_event,
-                                  wxWebViewWebKit2 *webKitCtrl)
+                                  wxWebViewWebKit2 *ctrl)
 {
-    wxString url = webKitCtrl->GetCurrentURL();
-    wxString target; // TODO: get target (if possible)
+    wxString url = ctrl->GetCurrentURL();
 
     if (load_event == WEBKIT_LOAD_FINISHED)
     {
-        WebKitBackForwardList* hist = webkit_web_view_get_back_forward_list(web_view);
-        WebKitBackForwardListItem* item = webkit_back_forward_list_get_current_item(hist);
-        //We have to check if we are actually storing history
-        //If the item isn't added we add it ourselves, it isn't added otherwise
-        //with a custom scheme.
-        if(webkit_web_history_item_get_uri(item) != url)
-        {
-            WebKitWebHistoryItem*
-                newitem = webkit_web_history_item_new_with_data
-                          (
-                            url.utf8_str(),
-                            webKitCtrl->GetCurrentTitle().utf8_str()
-                          );
-            webkit_web_back_forward_list_add_item(hist, newitem);
-        }
+        wxWebViewEvent event(wxEVT_WEBVIEW_LOADED, ctrl->GetId(), url, "");
 
-        webKitCtrl->m_busy = false;
-        wxWebViewEvent event(wxEVT_WEBVIEW_LOADED,
-                             webKitCtrl->GetId(),
-                             url, target);
-
-        if (webKitCtrl && webKitCtrl->GetEventHandler())
-            webKitCtrl->GetEventHandler()->ProcessEvent(event);
+        if (ctrl && ctrl->GetEventHandler())
+            ctrl->GetEventHandler()->ProcessEvent(event);
     }
     else if (load_event ==  WEBKIT_LOAD_COMMITTED)
     {
-        webKitCtrl->m_busy = true;
-        wxWebViewEvent event(wxEVT_WEBVIEW_NAVIGATED,
-                             webKitCtrl->GetId(),
-                             url, target);
+        wxWebViewEvent event(wxEVT_WEBVIEW_NAVIGATED, ctrl->GetId(), url, "");
 
-        if (webKitCtrl && webKitCtrl->GetEventHandler())
-            webKitCtrl->GetEventHandler()->ProcessEvent(event);
+        if (ctrl && ctrl->GetEventHandler())
+            ctrl->GetEventHandler()->ProcessEvent(event);
     }
 }
-
+/*
 static gboolean
 wxgtk_webview_webkit_navigation(WebKitWebView *,
                                 WebKitWebFrame *frame,
@@ -300,24 +277,21 @@ wxgtk_webview_webkit_new_window(WebKitWebView*,
     webkit_web_policy_decision_ignore(policy_decision);
     return TRUE;
 }
-
+*/
 static void
 wxgtk_webview_webkit_title_changed(WebKitWebView*,
-                                   WebKitWebFrame*,
-                                   gchar *title,
-                                   wxWebViewWebKit2 *webKitCtrl)
+                                   GParamSpec *pspec,
+                                   wxWebViewWebKit2 *ctrl)
 {
-    wxWebViewEvent event(wxEVT_WEBVIEW_TITLE_CHANGED,
-                         webKitCtrl->GetId(),
-                         webKitCtrl->GetCurrentURL(),
-                         "");
-    event.SetString(wxString(title, wxConvUTF8));
+    wxWebViewEvent event(wxEVT_WEBVIEW_TITLE_CHANGED, ctrl->GetId(),
+                         ctrl->GetCurrentURL(), "");
+    event.SetString(ctrl->GetCurrentTitle());
 
-    if (webKitCtrl && webKitCtrl->GetEventHandler())
-        webKitCtrl->GetEventHandler()->ProcessEvent(event);
+    if (ctrl && ctrl->GetEventHandler())
+        ctrl->GetEventHandler()->ProcessEvent(event);
 
 }
-
+/*
 static void
 wxgtk_webview_webkit_resource_req(WebKitWebView *,
                                   WebKitWebFrame *,
@@ -366,26 +340,23 @@ wxgtk_webview_webkit_resource_req(WebKitWebView *,
 
     }
 }
-
-#if WEBKIT_CHECK_VERSION(1, 10, 0)
+*/
 
 static gboolean
 wxgtk_webview_webkit_context_menu(WebKitWebView *,
-                                  GtkWidget *,
+                                  WebKitContextMenu *,
+                                  GdkEvent *,
                                   WebKitHitTestResult *,
-                                  gboolean,
-                                  wxWebViewWebKit2 *webKitCtrl)
+                                  wxWebViewWebKit2 *ctrl)
 {
-    if(webKitCtrl->IsContextMenuEnabled())
+    if(ctrl->IsContextMenuEnabled())
         return FALSE;
     else
         return TRUE;
 }
 
-#endif
-
 } // extern "C"
-*/
+
 //-----------------------------------------------------------------------------
 // wxWebViewWebKit2
 //-----------------------------------------------------------------------------
@@ -405,7 +376,6 @@ bool wxWebViewWebKit2::Create(wxWindow *parent,
                       long style,
                       const wxString& name)
 {
-    m_busy = false;
     m_guard = false;
     FindClear();
 
@@ -423,6 +393,9 @@ bool wxWebViewWebKit2::Create(wxWindow *parent,
     m_web_view = WEBKIT_WEB_VIEW(webkit_web_view_new());
     GTKCreateScrolledWindowWith(GTK_WIDGET(m_web_view));
     g_object_ref(m_widget);
+    
+    g_signal_connect_after(m_web_view, "notify::title",
+                           G_CALLBACK(wxgtk_webview_webkit_title_changed), this);
 /*
     g_signal_connect_after(m_web_view, "navigation-policy-decision-requested",
                            G_CALLBACK(wxgtk_webview_webkit_navigation),
@@ -433,18 +406,13 @@ bool wxWebViewWebKit2::Create(wxWindow *parent,
 
     g_signal_connect_after(m_web_view, "new-window-policy-decision-requested",
                            G_CALLBACK(wxgtk_webview_webkit_new_window), this);
-
-    g_signal_connect_after(m_web_view, "title-changed",
-                           G_CALLBACK(wxgtk_webview_webkit_title_changed), this);
-
-    g_signal_connect_after(m_web_view, "resource-request-starting",
-                           G_CALLBACK(wxgtk_webview_webkit_resource_req), this);
-      
-#if WEBKIT_CHECK_VERSION(1, 10, 0)    
-     g_signal_connect_after(m_web_view, "context-menu",
-                           G_CALLBACK(wxgtk_webview_webkit_context_menu), this);
-#endif
 */
+//    g_signal_connect_after(m_web_view, "resource-request-starting",
+  //                         G_CALLBACK(wxgtk_webview_webkit_resource_req), this);
+  
+    g_signal_connect_after(m_web_view, "context-menu",
+                           G_CALLBACK(wxgtk_webview_webkit_context_menu), this);
+    
     m_parent->DoAddChild( this );
 
     PostCreation(size);
@@ -452,15 +420,10 @@ bool wxWebViewWebKit2::Create(wxWindow *parent,
     /* Open a webpage */
     webkit_web_view_load_uri(m_web_view, url.utf8_str());
 
-    //Get the initial history limit so we can enable and disable it later
- //   WebKitWebBackForwardList* history;
-   // history = webkit_web_view_get_back_forward_list(m_web_view);
-   // m_historyLimit = webkit_web_back_forward_list_get_limit(history);
-
     // last to avoid getting signal too early
-//    g_signal_connect_after(m_web_view, "notify::load-status",
-  //                         G_CALLBACK(wxgtk_webview_webkit_load_status),
-    ///                       this);
+    g_signal_connect_after(m_web_view, "load-changed",
+                           G_CALLBACK(wxgtk_webview_webkit_load_changed),
+                           this);
 
     return true;
 }
@@ -638,17 +601,20 @@ bool wxWebViewWebKit2::CanPaste() const
 
 void wxWebViewWebKit2::Cut()
 {
-    //webkit_web_view_cut_clipboard(m_web_view);
+    webkit_web_view_execute_editing_command(m_web_view,
+                                            WEBKIT_EDITING_COMMAND_CUT);
 }
 
 void wxWebViewWebKit2::Copy()
 {
-    //webkit_web_view_copy_clipboard(m_web_view);
+    webkit_web_view_execute_editing_command(m_web_view,
+                                            WEBKIT_EDITING_COMMAND_COPY);
 }
 
 void wxWebViewWebKit2::Paste()
 {
-    //webkit_web_view_paste_clipboard(m_web_view);
+    webkit_web_view_execute_editing_command(m_web_view,
+                                            WEBKIT_EDITING_COMMAND_CUT);
 }
 
 bool wxWebViewWebKit2::CanUndo() const
@@ -665,12 +631,14 @@ bool wxWebViewWebKit2::CanRedo() const
 
 void wxWebViewWebKit2::Undo()
 {
-    //webkit_web_view_undo(m_web_view);
+    webkit_web_view_execute_editing_command(m_web_view,
+                                            WEBKIT_EDITING_COMMAND_UNDO);
 }
 
 void wxWebViewWebKit2::Redo()
 {
-    //webkit_web_view_redo(m_web_view);
+    webkit_web_view_execute_editing_command(m_web_view,
+                                            WEBKIT_EDITING_COMMAND_REDO);
 }
 
 wxString wxWebViewWebKit2::GetCurrentURL() const
@@ -785,11 +753,9 @@ bool wxWebViewWebKit2::CanSetZoomType(wxWebViewZoomType) const
 
 void wxWebViewWebKit2::DoSetPage(const wxString& html, const wxString& baseUri)
 {
-    //webkit_web_view_load_string (m_web_view,
-      //                           html.mb_str(wxConvUTF8),
-        //                         "text/html",
-          //                       "UTF-8",
-            //                     baseUri.mb_str(wxConvUTF8));
+    webkit_web_view_load_html(m_web_view,
+                              html.mb_str(wxConvUTF8),
+                              baseUri.mb_str(wxConvUTF8));
 }
 
 void wxWebViewWebKit2::Print()
@@ -808,7 +774,7 @@ void wxWebViewWebKit2::Print()
 
 bool wxWebViewWebKit2::IsBusy() const
 {
-    return m_busy;
+    return webkit_web_view_is_loading(m_web_view);
 }
 
 void wxWebViewWebKit2::SetEditable(bool enable)
