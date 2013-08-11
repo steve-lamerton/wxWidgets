@@ -291,17 +291,24 @@ static gboolean
 wxgtk_webview_webkit_new_window(WebKitWebView*,
                                 WebKitWebFrame *frame,
                                 WebKitNetworkRequest *request,
-                                WebKitWebNavigationAction*,
+                                WebKitWebNavigationAction* action,
                                 WebKitWebPolicyDecision *policy_decision,
                                 wxWebViewWebKit *webKitCtrl)
 {
     const gchar* uri = webkit_network_request_get_uri(request);
-
     wxString target = webkit_web_frame_get_name (frame);
+    
+    WebKitWebNavigationReason reason = webkit_web_navigation_action_get_reason(action);
+    
+    wxWebViewNavigationActionFlags flags = wxWEBVIEW_NAV_ACTION_USER;
+
+    if(reason == WEBKIT_WEB_NAVIGATION_REASON_OTHER)
+        flags = wxWEBVIEW_NAV_ACTION_OTHER;
+    
     wxWebViewEvent event(wxEVT_WEBVIEW_NEWWINDOW,
                                        webKitCtrl->GetId(),
                                        wxString( uri, wxConvUTF8 ),
-                                       target);
+                                       target, flags);
 
     if (webKitCtrl && webKitCtrl->GetEventHandler())
         webKitCtrl->GetEventHandler()->ProcessEvent(event);
