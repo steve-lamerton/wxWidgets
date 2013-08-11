@@ -1391,16 +1391,10 @@ void wxWebViewIE::onActiveXEvent(wxActiveXEvent& evt)
             wxString url = evt[4].GetString();
             long flags = evt[2].GetLong();
 
-            wxWebViewNavigationActionFlags navFlags = wxWEBVIEW_NAV_ACTION_NONE;
+            wxWebViewNavigationActionFlags navFlags = wxWEBVIEW_NAV_ACTION_OTHER;
 
             if(flags & NWMF_USERINITED || flags & NWMF_USERREQUESTED)
-            {
                 navFlags = wxWEBVIEW_NAV_ACTION_USER;
-            }
-            else
-            {
-                navFlags = wxWEBVIEW_NAV_ACTION_OTHER;
-            }
 
             wxWebViewEvent event(wxEVT_WEBVIEW_NEWWINDOW,
                                  GetId(), url, wxEmptyString, navFlags);
