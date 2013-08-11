@@ -78,6 +78,13 @@ enum wxWebViewFindFlags
     wxWEBVIEW_FIND_DEFAULT =          0
 };
 
+enum wxWebViewNavigationActionFlags
+{
+    wxWEBVIEW_NAV_ACTION_NONE  = 0x0000,
+    wxWEBVIEW_NAV_ACTION_USER  = 0x0001,
+    wxWEBVIEW_NAV_ACTION_OTHER = 0x0002
+};
+
 //Base class for custom scheme handlers
 class WXDLLIMPEXP_WEBVIEW wxWebViewHandler
 {
@@ -238,18 +245,23 @@ class WXDLLIMPEXP_WEBVIEW wxWebViewEvent : public wxNotifyEvent
 public:
     wxWebViewEvent() {}
     wxWebViewEvent(wxEventType type, int id, const wxString url,
-                   const wxString target)
-        : wxNotifyEvent(type, id), m_url(url), m_target(target)
+                   const wxString target, 
+                   wxWebViewNavigationActionFlags flags = wxWEBVIEW_NAV_ACTION_NONE)
+        : wxNotifyEvent(type, id), m_url(url), m_target(target), 
+          m_actionFlags(flags)
     {}
 
 
     const wxString& GetURL() const { return m_url; }
     const wxString& GetTarget() const { return m_target; }
 
+    wxWebViewNavigationActionFlags GetNavigationAction() const { return m_actionFlags; }
+
     virtual wxEvent* Clone() const { return new wxWebViewEvent(*this); }
 private:
     wxString m_url;
     wxString m_target;
+    wxWebViewNavigationActionFlags m_actionFlags;
 
     wxDECLARE_DYNAMIC_CLASS_NO_ASSIGN(wxWebViewEvent);
 };
