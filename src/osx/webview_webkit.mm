@@ -1249,9 +1249,16 @@ wxString nsErrorToWxHtmlError(NSError* error, wxWebViewNavigationError* out)
     wxUnusedVar(actionInformation);
 
     NSString *url = [[request URL] absoluteString];
+
+    wxWebViewNavigationActionFlags flags = wxWEBVIEW_NAV_ACTION_USER;
+
+    NSUInteger action = [[actionInformation objectForKey:WebActionNavigationTypeKey] unsignedIntValue];
+    if (actionType == WebNavigationTypeOther)
+        flags = wxWEBVIEW_NAV_ACTION_OTHER;
+
     wxWebViewEvent event(wxEVT_WEBVIEW_NEWWINDOW,
                          webKitWindow->GetId(),
-                         wxStringWithNSString( url ), "");
+                         wxStringWithNSString( url ), "", flags);
 
     if (webKitWindow && webKitWindow->GetEventHandler())
         webKitWindow->GetEventHandler()->ProcessEvent(event);
