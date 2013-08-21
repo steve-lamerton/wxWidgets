@@ -94,6 +94,8 @@ enum wxWebViewFindFlags
 
 /**
     Navigation action types.
+    
+    @since 3.0
 */
 enum wxWebViewNavigationActionFlags
 {
@@ -814,6 +816,8 @@ public:
     /**
         Get the type of navigation action. Only valid for events of type 
         @c wxEVT_WEBVIEW_NEWWINDOW
+        
+        @since 3.0
     */
     wxWebViewNavigationActionFlags GetNavigationAction() const;
 };
