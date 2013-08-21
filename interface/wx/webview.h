@@ -92,6 +92,19 @@ enum wxWebViewFindFlags
     wxWEBVIEW_FIND_DEFAULT =          0
 };
 
+/**
+    Navigation action types.
+*/
+enum wxWebViewNavigationActionFlags
+{
+    /** No navigation action */
+    wxWEBVIEW_NAV_ACTION_NONE  = 0x0000,
+    /** The navigation was started by the user */
+    wxWEBVIEW_NAV_ACTION_USER  = 0x0001,
+    /**The navigation was started but not by the user*/
+    wxWEBVIEW_NAV_ACTION_OTHER = 0x0002
+};
+
 
 /**
     @class wxWebViewHistoryItem
@@ -783,7 +796,8 @@ class wxWebViewEvent : public wxNotifyEvent
 public:
     wxWebViewEvent();
     wxWebViewEvent(wxEventType type, int id, const wxString href,
-                   const wxString target);
+                   const wxString target,
+                   wxWebViewNavigationActionFlags flags = wxWEBVIEW_NAV_ACTION_NONE);
 
     /**
         Get the name of the target frame which the url of this event
@@ -796,6 +810,12 @@ public:
         Get the URL being visited
     */
     const wxString& GetURL() const;
+    
+    /**
+        Get the type of navigation action. Only valid for events of type 
+        @c wxEVT_WEBVIEW_NEWWINDOW
+    */
+    wxWebViewNavigationActionFlags GetNavigationAction() const;
 };
 
 
