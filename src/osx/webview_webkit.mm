@@ -1252,7 +1252,7 @@ wxString nsErrorToWxHtmlError(NSError* error, wxWebViewNavigationError* out)
 
     wxWebViewNavigationActionFlags flags = wxWEBVIEW_NAV_ACTION_USER;
 
-    NSUInteger action = [[actionInformation objectForKey:WebActionNavigationTypeKey] unsignedIntValue];
+    int action = [[actionInformation objectForKey:WebActionNavigationTypeKey] intValue];
     if (actionType == WebNavigationTypeOther)
         flags = wxWEBVIEW_NAV_ACTION_OTHER;
 
