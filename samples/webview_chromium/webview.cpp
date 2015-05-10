@@ -74,8 +74,29 @@ public:
     }
 
     virtual bool OnInit();
-    //Command line parser, maybe?
     virtual int OnExit();
+#if wxUSE_CMDLINE_PARSER
+    virtual void OnInitCmdLine( wxCmdLineParser& parser ) wxOVERRIDE
+    {
+        wxApp::OnInitCmdLine( parser );
+
+        parser.AddParam( "URL to open",
+                         wxCMD_LINE_VAL_STRING,
+                         wxCMD_LINE_PARAM_OPTIONAL );
+    }
+
+        virtual bool OnCmdLineParsed( wxCmdLineParser& parser ) wxOVERRIDE
+    {
+        if( !wxApp::OnCmdLineParsed( parser ) )
+        return false;
+
+        if( parser.GetParamCount() )
+            m_url = parser.GetParam( 0 );
+
+        return true;
+    }
+#endif // wxUSE_CMDLINE_PARSER
+
 private:
     wxString m_url;
 };
