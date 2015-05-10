@@ -2,7 +2,8 @@
 // Name:        webview.cpp
 // Purpose:     wxWebView sample
 // Author:      Marianne Gagnon
-// Copyright:   (c) 2010 Marianne Gagnon, Steven Lamerton
+// Modified by: Steven Lamerton, Matheus Silva Santos
+// Copyright:   (c) 2010 - 2015  Marianne Gagnon, Steven Lamerton
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -21,7 +22,7 @@
     #include "wx/wx.h"
 #endif
 
-#if !wxUSE_WEBVIEW_WEBKIT && !wxUSE_WEBVIEW_IE
+#if !wxUSE_WEBVIEW_WEBKIT && !wxUSE_WEBVIEW_IE && !wxUSE_WEBVIEW_CHROMIUM
 #error "A wxWebView backend is required by this sample"
 #endif
 
@@ -36,6 +37,11 @@
 #include "wx/filesys.h"
 #include "wx/fs_arc.h"
 #include "wx/fs_mem.h"
+
+#if wxUSE_WEBVIEW_CHROMIUM
+    #include "wx/timer.h"
+    #include "wx/webview_chromium.h"
+#endif
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "../sample.xpm"
@@ -68,7 +74,7 @@ public:
     }
 
     virtual bool OnInit() wxOVERRIDE;
-
+    virtual int OnExit();
 #if wxUSE_CMDLINE_PARSER
     virtual void OnInitCmdLine(wxCmdLineParser& parser) wxOVERRIDE
     {
@@ -102,6 +108,9 @@ public:
     virtual ~WebFrame();
 
     void UpdateState();
+#if wxUSE_WEBVIEW_CHROMIUM
+    void OnTimer(wxTimerEvent& evt);
+#endif
     void OnIdle(wxIdleEvent& evt);
     void OnUrl(wxCommandEvent& evt);
     void OnBack(wxCommandEvent& evt);
@@ -144,10 +153,16 @@ public:
     void OnFindText(wxCommandEvent& evt);
     void OnFindOptions(wxCommandEvent& evt);
     void OnEnableContextMenu(wxCommandEvent& evt);
+    void OnClose(wxCloseEvent& evt);
 
 private:
     wxTextCtrl* m_url;
     wxWebView* m_browser;
+
+#if wxUSE_WEBVIEW_CHROMIUM
+    // A timer to run CEF message loop.
+    wxTimer* m_timer;
+#endif
 
     wxToolBar* m_toolbar;
     wxToolBarToolBase* m_toolbar_back;
@@ -199,6 +214,7 @@ private:
     wxMenuHistoryMap m_histMenuItems;
     wxString m_findText;
     int m_findFlags, m_findCount;
+
 };
 
 class SourceViewDialog : public wxDialog
@@ -215,6 +231,19 @@ IMPLEMENT_APP(WebApp)
 
 bool WebApp::OnInit()
 {
+
+#if wxUSE_WEBVIEW_CHROMIUM
+    // We spawn a separate subprocess
+    int code = 0;
+#ifdef __WXMSW__
+    if(!wxWebViewChromium::StartUp(code, ""))
+#else
+    if(!wxWebViewChromium::StartUp(code, "",
+                                   wxApp::argc, wxApp::argv))
+#endif
+        exit(code);
+#endif
+
     if ( !wxApp::OnInit() )
         return false;
 
@@ -243,6 +272,16 @@ bool WebApp::OnInit()
     frame->Show();
 
     return true;
+}
+
+int WebApp::OnExit()
+{
+#if wxUSE_WEBVIEW_CHROMIUM
+#if defined(__WXMSW__) || defined(__WXGTK__)
+    wxWebViewChromium::Shutdown();
+#endif
+#endif
+    return wxApp::OnExit();
 }
 
 WebFrame::WebFrame(const wxString& url) :
@@ -327,8 +366,16 @@ WebFrame::WebFrame(const wxString& url) :
     topsizer->Add(m_info, wxSizerFlags().Expand());
 
     // Create the webview
+#if wxUSE_WEBVIEW_CHROMIUM
+    wxWebView::RegisterFactory(wxWebViewBackendChromium, wxSharedPtr<wxWebViewFactory>
+                                                                     (new wxWebViewFactoryChromium));
+    m_browser = wxWebView::New(this, wxID_ANY, url, wxDefaultPosition, wxSize( 800, 525 ), wxWebViewBackendChromium);
+#else
     m_browser = wxWebView::New(this, wxID_ANY, url);
+#endif
+
     topsizer->Add(m_browser, wxSizerFlags().Expand().Proportion(1));
+
 
     //We register the wxfs:// protocol for testing purposes
     m_browser->RegisterHandler(wxSharedPtr<wxWebViewHandler>(new wxWebViewArchiveHandler("wxfs")));
@@ -417,110 +464,117 @@ WebFrame::WebFrame(const wxString& url) :
 
 
     // Connect the toolbar events
-    Connect(m_toolbar_back->GetId(), wxEVT_TOOL,
+    Connect(m_toolbar_back->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnBack), NULL, this );
-    Connect(m_toolbar_forward->GetId(), wxEVT_TOOL,
+    Connect(m_toolbar_forward->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnForward), NULL, this );
-    Connect(m_toolbar_stop->GetId(), wxEVT_TOOL,
+    Connect(m_toolbar_stop->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnStop), NULL, this );
-    Connect(m_toolbar_reload->GetId(), wxEVT_TOOL,
+    Connect(m_toolbar_reload->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnReload),NULL, this );
-    Connect(m_toolbar_tools->GetId(), wxEVT_TOOL,
+    Connect(m_toolbar_tools->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnToolsClicked), NULL, this );
 
-    Connect(m_url->GetId(), wxEVT_TEXT_ENTER,
+    Connect(m_url->GetId(), wxEVT_COMMAND_TEXT_ENTER,
             wxCommandEventHandler(WebFrame::OnUrl), NULL, this );
 
     // Connect find toolbar events.
-    Connect(m_find_toolbar_done->GetId(), wxEVT_TOOL,
+    Connect(m_find_toolbar_done->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnFindDone), NULL, this );
-    Connect(m_find_toolbar_next->GetId(), wxEVT_TOOL,
+    Connect(m_find_toolbar_next->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnFindText), NULL, this );
-    Connect(m_find_toolbar_previous->GetId(), wxEVT_TOOL,
+    Connect(m_find_toolbar_previous->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
             wxCommandEventHandler(WebFrame::OnFindText), NULL, this );
 
     // Connect find control events.
-    Connect(m_find_ctrl->GetId(), wxEVT_TEXT,
+    Connect(m_find_ctrl->GetId(), wxEVT_COMMAND_TEXT_UPDATED,
             wxCommandEventHandler(WebFrame::OnFindText), NULL, this );
-    Connect(m_find_ctrl->GetId(), wxEVT_TEXT_ENTER,
+    Connect(m_find_ctrl->GetId(), wxEVT_COMMAND_TEXT_ENTER,
             wxCommandEventHandler(WebFrame::OnFindText), NULL, this );
 
     // Connect the webview events
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_NAVIGATING,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_NAVIGATING,
             wxWebViewEventHandler(WebFrame::OnNavigationRequest), NULL, this);
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_NAVIGATED,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_NAVIGATED,
             wxWebViewEventHandler(WebFrame::OnNavigationComplete), NULL, this);
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_LOADED,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_LOADED,
             wxWebViewEventHandler(WebFrame::OnDocumentLoaded), NULL, this);
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_ERROR,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_ERROR,
             wxWebViewEventHandler(WebFrame::OnError), NULL, this);
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_NEWWINDOW,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_NEWWINDOW,
             wxWebViewEventHandler(WebFrame::OnNewWindow), NULL, this);
-    Connect(m_browser->GetId(), wxEVT_WEBVIEW_TITLE_CHANGED,
+    Connect(m_browser->GetId(), wxEVT_COMMAND_WEBVIEW_TITLE_CHANGED,
             wxWebViewEventHandler(WebFrame::OnTitleChanged), NULL, this);
 
     // Connect the menu events
-    Connect(viewSource->GetId(), wxEVT_MENU,
+    Connect(viewSource->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnViewSourceRequest),  NULL, this );
-    Connect(viewText->GetId(), wxEVT_MENU,
+    Connect(viewText->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnViewTextRequest),  NULL, this );
-    Connect(print->GetId(), wxEVT_MENU,
+    Connect(print->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnPrint),  NULL, this );
-    Connect(m_tools_layout->GetId(), wxEVT_MENU,
+    Connect(m_tools_layout->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnZoomLayout),  NULL, this );
-    Connect(m_tools_tiny->GetId(), wxEVT_MENU,
+    Connect(m_tools_tiny->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSetZoom),  NULL, this );
-    Connect(m_tools_small->GetId(), wxEVT_MENU,
+    Connect(m_tools_small->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSetZoom),  NULL, this );
-    Connect(m_tools_medium->GetId(), wxEVT_MENU,
+    Connect(m_tools_medium->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSetZoom),  NULL, this );
-    Connect(m_tools_large->GetId(), wxEVT_MENU,
+    Connect(m_tools_large->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSetZoom),  NULL, this );
-    Connect(m_tools_largest->GetId(), wxEVT_MENU,
+    Connect(m_tools_largest->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSetZoom),  NULL, this );
-    Connect(clearhist->GetId(), wxEVT_MENU,
+    Connect(clearhist->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnClearHistory),  NULL, this );
-    Connect(m_tools_enable_history->GetId(), wxEVT_MENU,
+    Connect(m_tools_enable_history->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnEnableHistory),  NULL, this );
-    Connect(m_edit_cut->GetId(), wxEVT_MENU,
+    Connect(m_edit_cut->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnCut),  NULL, this );
-    Connect(m_edit_copy->GetId(), wxEVT_MENU,
+    Connect(m_edit_copy->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnCopy),  NULL, this );
-    Connect(m_edit_paste->GetId(), wxEVT_MENU,
+    Connect(m_edit_paste->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnPaste),  NULL, this );
-    Connect(m_edit_undo->GetId(), wxEVT_MENU,
+    Connect(m_edit_undo->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnUndo),  NULL, this );
-    Connect(m_edit_redo->GetId(), wxEVT_MENU,
+    Connect(m_edit_redo->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnRedo),  NULL, this );
-    Connect(m_edit_mode->GetId(), wxEVT_MENU,
+    Connect(m_edit_mode->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnMode),  NULL, this );
-    Connect(m_scroll_line_up->GetId(), wxEVT_MENU,
+    Connect(m_scroll_line_up->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnScrollLineUp),  NULL, this );
-    Connect(m_scroll_line_down->GetId(), wxEVT_MENU,
+    Connect(m_scroll_line_down->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnScrollLineDown),  NULL, this );
-    Connect(m_scroll_page_up->GetId(), wxEVT_MENU,
+    Connect(m_scroll_page_up->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnScrollPageUp),  NULL, this );
-    Connect(m_scroll_page_down->GetId(), wxEVT_MENU,
+    Connect(m_scroll_page_down->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnScrollPageDown),  NULL, this );
-    Connect(script->GetId(), wxEVT_MENU,
+    Connect(script->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnRunScript),  NULL, this );
-    Connect(m_selection_clear->GetId(), wxEVT_MENU,
+    Connect(m_selection_clear->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnClearSelection),  NULL, this );
-    Connect(m_selection_delete->GetId(), wxEVT_MENU,
+    Connect(m_selection_delete->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnDeleteSelection),  NULL, this );
-    Connect(selectall->GetId(), wxEVT_MENU,
+    Connect(selectall->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnSelectAll),  NULL, this );
-    Connect(loadscheme->GetId(), wxEVT_MENU,
+    Connect(loadscheme->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnLoadScheme),  NULL, this );
-    Connect(usememoryfs->GetId(), wxEVT_MENU,
+    Connect(usememoryfs->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnUseMemoryFS),  NULL, this );
-    Connect(m_find->GetId(), wxEVT_MENU,
+    Connect(m_find->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnFind),  NULL, this );
-    Connect(m_context_menu->GetId(), wxEVT_MENU,
+    Connect(m_context_menu->GetId(), wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(WebFrame::OnEnableContextMenu), NULL, this );
 
     //Connect the idle events
     Connect(wxID_ANY, wxEVT_IDLE, wxIdleEventHandler(WebFrame::OnIdle), NULL, this);
+    Connect(wxID_ANY, wxEVT_CLOSE_WINDOW, wxCloseEventHandler(WebFrame::OnClose), NULL, this);
+#if wxUSE_WEBVIEW_CHROMIUM
+    Connect(wxID_ANY, wxEVT_TIMER, wxTimerEventHandler(WebFrame::OnTimer), NULL, this);
+
+    m_timer = new wxTimer(this);
+    m_timer->Start(25);
+#endif
 }
 
 WebFrame::~WebFrame()
@@ -549,6 +603,13 @@ void WebFrame::UpdateState()
     SetTitle( m_browser->GetCurrentTitle() );
     m_url->SetValue( m_browser->GetCurrentURL() );
 }
+
+#if wxUSE_WEBVIEW_CHROMIUM
+void WebFrame::OnTimer(wxTimerEvent& WXUNUSED(evt))
+{
+     wxWebViewChromium::DoCEFWork();
+}
+#endif
 
 void WebFrame::OnIdle(wxIdleEvent& WXUNUSED(evt))
 {
@@ -654,11 +715,19 @@ void WebFrame::OnMode(wxCommandEvent& WXUNUSED(evt))
 
 void WebFrame::OnLoadScheme(wxCommandEvent& WXUNUSED(evt))
 {
-    wxFileName helpfile("../help/doc.zip");
-    helpfile.MakeAbsolute();
-    wxString path = helpfile.GetFullPath();
+    // Since webview sample build directory is different from platforms, We traverse
+    // from building directory to retrieve `<wxwidgets-src>/samples/help/` absolute path.
+    wxFileName cur_dir(".");
+    cur_dir.MakeAbsolute();
+    wxString cur_path = cur_dir.GetFullPath();
     //Under MSW we need to flip the slashes
-    path.Replace("\\", "/");
+    cur_path.Replace("\\", "/");
+    int samples_begin_pos = cur_path.find("samples");
+    // Invalid sample directory, just return.
+    if (samples_begin_pos == -1)
+      return;
+
+    wxString path = cur_path.substr(0, samples_begin_pos+7) + "/help/doc.zip";
     path = "wxfs:///" + path + ";protocol=zip/doc.htm";
     m_browser->LoadURL(path);
 }
@@ -736,7 +805,7 @@ void WebFrame::OnFindText(wxCommandEvent& evt)
     {
         count++;
     }
-    wxLogMessage("Searching for:%s  current match:%i/%i", m_findText.c_str(), count, m_findCount);
+    wxLogMessage("Searching for:%s  current match:%ld/%d", m_findText.c_str(), count, m_findCount);
 }
 
 /**
@@ -900,7 +969,7 @@ void WebFrame::OnToolsClicked(wxCommandEvent& WXUNUSED(evt))
     {
         item = m_tools_history_menu->AppendRadioItem(wxID_ANY, back[i]->GetTitle());
         m_histMenuItems[item->GetId()] = back[i];
-        Connect(item->GetId(), wxEVT_MENU,
+        Connect(item->GetId(), wxEVT_COMMAND_MENU_SELECTED,
                 wxCommandEventHandler(WebFrame::OnHistory), NULL, this );
     }
 
@@ -917,7 +986,7 @@ void WebFrame::OnToolsClicked(wxCommandEvent& WXUNUSED(evt))
     {
         item = m_tools_history_menu->AppendRadioItem(wxID_ANY, forward[i]->GetTitle());
         m_histMenuItems[item->GetId()] = forward[i];
-        Connect(item->GetId(), wxEVT_TOOL,
+        Connect(item->GetId(), wxEVT_COMMAND_TOOL_CLICKED,
                 wxCommandEventHandler(WebFrame::OnHistory), NULL, this );
     }
 
@@ -1057,4 +1126,17 @@ SourceViewDialog::SourceViewDialog(wxWindow* parent, wxString source) :
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(text, 1, wxEXPAND);
     SetSizer(sizer);
+}
+
+void WebFrame::OnClose(wxCloseEvent & WXUNUSED(evt))
+{
+#if wxUSE_WEBVIEW_CHROMIUM
+    delete m_timer;
+// On Windows/Linux, calling `Shutdown` here will cause a crash when closing WebFrame.
+// This is a temporary fix.
+#ifdef __WXOSX__
+    wxWebViewChromium::Shutdown();
+#endif
+#endif
+    Destroy();
 }
