@@ -2,6 +2,7 @@
 // Name:        webview.cpp
 // Purpose:     wxWebView sample
 // Author:      Marianne Gagnon
+// Modified by: Steven Lamerton, Matheus Silva Santos
 // Copyright:   (c) 2010 - 2015  Marianne Gagnon, Steven Lamerton
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
