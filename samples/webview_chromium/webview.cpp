@@ -37,9 +37,11 @@
 #include "wx/filesys.h"
 #include "wx/fs_arc.h"
 #include "wx/fs_mem.h"
-#include "wx/timer.h"
 
-#include "wx/webview_chromium.h"
+#if wxUSE_WEBVIEW_CHROMIUM
+    #include "wx/timer.h"
+    #include "wx/webview_chromium.h"
+#endif
 
 #ifndef wxHAS_IMAGES_IN_RESOURCES
     #include "../sample.xpm"
